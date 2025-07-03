@@ -6,7 +6,6 @@ use App\Models\Book;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 class BookController extends Controller
 {
@@ -35,27 +34,18 @@ class BookController extends Controller
 
         // Validate the form data
         $request->validate([
-            'title' => 'required|string|min:3|max:255',
-            'description' => 'required|string|min:10',
-            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // 2MB max
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
         ]);
 
-        $bookData = [
+        // Create the book
+        Book::create([
             'title' => $request->title,
             'description' => $request->description,
             'created_by' => Auth::id(),
-        ];
+        ]);
 
-        // Handle cover image upload
-        if ($request->hasFile('cover_image')) {
-            $imagePath = $request->file('cover_image')->store('book-covers', 'public');
-            $bookData['cover_image'] = $imagePath;
-        }
-
-        // Create the book
-        $book = Book::create($bookData);
-
-        return redirect('/dashboard')->with('success', "Book '{$book->title}' created successfully!");
+        return redirect('/dashboard')->with('success', 'Book created successfully!');
     }
 
     /**
@@ -69,7 +59,7 @@ class BookController extends Controller
         }
 
         // Get teacher's books and all students
-        $books = Auth::user()->createdBooks;
+        $books = Auth::user()->createdBooks()->get();
         $students = User::where('role', 'student')->get();
 
         return view('books.assign', compact('books', 'students'));
@@ -82,9 +72,6 @@ class BookController extends Controller
     {
         // Check if user is logged in and is a teacher
         if (!Auth::check() || !Auth::user()->isTeacher()) {
-            if ($request->ajax()) {
-                return response()->json(['message' => 'Access denied. Teachers only.'], 403);
-            }
             return redirect('/dashboard')->with('error', 'Access denied. Teachers only.');
         }
 
@@ -100,11 +87,7 @@ class BookController extends Controller
                    ->first();
 
         if (!$book) {
-            $message = 'You can only assign books you created.';
-            if ($request->ajax()) {
-                return response()->json(['message' => $message], 403);
-            }
-            return back()->with('error', $message);
+            return back()->with('error', 'You can only assign books you created.');
         }
 
         // Check if student role is correct
@@ -113,11 +96,7 @@ class BookController extends Controller
                       ->first();
 
         if (!$student) {
-            $message = 'Invalid student selected.';
-            if ($request->ajax()) {
-                return response()->json(['message' => $message], 400);
-            }
-            return back()->with('error', $message);
+            return back()->with('error', 'Invalid student selected.');
         }
 
         // Try to assign the book (will fail if already assigned due to unique constraint)
@@ -128,23 +107,9 @@ class BookController extends Controller
                 'updated_at' => now(),
             ]);
 
-            $message = "Book '{$book->title}' assigned to {$student->username} successfully!";
-
-            if ($request->ajax()) {
-                return response()->json([
-                    'message' => $message,
-                    'book' => $book->title,
-                    'student' => $student->username
-                ]);
-            }
-
-            return back()->with('success', $message);
+            return back()->with('success', "Book '{$book->title}' assigned to {$student->username} successfully!");
         } catch (\Exception $e) {
-            $message = 'This book is already assigned to this student.';
-            if ($request->ajax()) {
-                return response()->json(['message' => $message], 400);
-            }
-            return back()->with('error', $message);
+            return back()->with('error', 'This book is already assigned to this student.');
         }
     }
 }

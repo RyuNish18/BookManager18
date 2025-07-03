@@ -13,10 +13,10 @@
             </div>
             <div class="card-body">
                 @if($assignedBooks->count() > 0)
-                    <div class="row">
+                    <div class="row" id="assigned-books-container">
                         @foreach($assignedBooks as $book)
                             <div class="col-md-6 mb-3">
-                                <div class="card h-100">
+                                <div class="card h-100 book-card">
                                     <div class="card-body">
                                         <h6 class="card-title">📖 {{ $book->title }}</h6>
                                         <p class="card-text">{{ $book->description }}</p>
@@ -42,4 +42,16 @@
         </div>
     </div>
 </div>
+
+<script>
+$(document).ready(function() {
+    // Animate book cards on load
+    $('.book-card').each(function(index) {
+        $(this).delay(index * 100).fadeIn(500);
+    });
+
+    // Initially hide cards for animation
+    $('.book-card').hide();
+});
+</script>
 @endsection
